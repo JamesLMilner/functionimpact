@@ -174,35 +174,18 @@ function main() {
 
     function getExample() {
         return `
-        function sieveOfEratosthenes(limit) {
-
-            const sieve = [];
-            const primes = [];
-            let k;
-            let l;
+        function pi(precision) {
+            let insideCircle = 0;
         
-            sieve[1] = false;
-            for (k = 2; k <= limit; k += 1) {
-              sieve[k] = true;
+            for(let i = 0; i < precision; i++) {
+                const x = 2 * Math.random() - 1;
+                const y = 2 * Math.random() - 1;
+                if (x * x + y * y < 1) {
+                    insideCircle++;
+                }
             }
         
-            for (k = 2; k * k <= limit; k += 1) {
-              if (sieve[k] !== true) {
-                continue;
-              }
-              for (l = k * k; l <= limit; l += k) {
-                sieve[l] = false;
-              }
-            }
-        
-            sieve.forEach(function (value, key) {
-              if (value) {
-                this.push(key);
-              }
-            }, primes);
-        
-            return primes;
-        
+            return 4 * insideCircle / precision;
         }
         `
     }

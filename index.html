@@ -11,34 +11,49 @@
             #codeContainer {
                 display: flex;
                 padding: 10px;
+                background: #f9f9f9;
+                border: solid #bababa 1px;
+                border-radius: 5px;
             }
             #code {
                 margin: 0;
-                width: 100%;
+                width: 95%;
                 display: flex;
                 height: 300px;
+                resize: vertical;
             }
             #result {
                 background: #f9f9f9;
                 border-radius: 5px;
-                margin-left: 10px;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                border: solid 1px #bababa;
             }
             #codeArea {
                 width: 50%;
+            }
+            #codeArea h3, #runContainer h3 {
+                margin-top: 0px;
             }
             #result h3 {
                 margin: 0px;
                 margin-bottom: 10px;
             }
-            #runContainer {
-                /* display: flex; */
+            #info {
+                display: flex;
+            }
+            #info > div {
+                width: 45%;
                 padding: 10px;
             }
             #runContainer button {
                 width: 100%;
                 margin-top: 10px;
+                background: #0093ff;
+                color: white;
+                border: none;
+                height: 30px;
+                border-radius: 5px;
             }
 
             #params label {
@@ -58,7 +73,6 @@
             }
 
             #timetaken, #resultoutput, #warnings {
-                margin-top: 10px;
                 padding: 10px;
             }
 
@@ -115,14 +129,16 @@
             </div>
 
             <div id="result">
-                <div id="resultoutput">
-                    <h3>Result</h3>
-                    <div id="output"></div>
-                </div>
-                
-                <div id="timetaken">
-                    <h3>Time Taken</h3>
-                    <div id="time"></div>
+                <div id="info">
+                    <div id="resultoutput">
+                        <h3>Result</h3>
+                        <div id="output"></div>
+                    </div>
+                    
+                    <div id="timetaken">
+                        <h3>Time Taken</h3>
+                        <div id="time"></div>
+                    </div>
                 </div>
                
                 <div id="warnings">
