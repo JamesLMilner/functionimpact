@@ -1,28 +1,49 @@
+(function() {
 
-
-function main() {
+    // DOM Elements
     const code = document.getElementById("code");
     const error = document.getElementById("error");
     const run = document.getElementById("run");
+    const parameters = document.getElementById("parameters");
     const params = document.getElementById("params");
     const output = document.getElementById("output");
     const time = document.getElementById("time");
+    const warnings = document.getElementById("warnings");
+
+    // DOM Elements - Warnings
     const frames = document.getElementById("frames");
     const perceptible = document.getElementById("perceptible");
-    const warnings = document.getElementById("warnings");
+    const perceptibleLong = document.getElementById("perceptibleLong");
+    const webworkerRecommendable = document.getElementById("webworkerRecommendable");
     const webworker = document.getElementById("webworker");
     const dom = document.getElementById("dom");
+    const ric = document.getElementById("ric");
+    const longDom = document.getElementById("longDom");
+    const transfer = document.getElementById("transfer");
+    const allWarnings = [
+        frames, perceptible, perceptibleLong, webworkerRecommendable, webworker,
+        dom, ric, longDom, transfer
+    ];
 
-    let result;
+    // DOM Elements - Inner warning elements
+    const skipped = document.getElementById("skipped");
+    const transferTime = document.getElementById("transferTime");
 
-    code.value = getExample();
-    handleInput();
+    const worker = new Worker('worker.js');
+    let runCount = 0;
 
+    // Event handlers
     run.addEventListener("click", handleRun);
     code.addEventListener("input", handleInput);
 
+    let result;
+
+    code.value = getExample(); // Set example
+    handleInput(); // Run initially before key strokes
+
     function handleInput() {
         const codeStr = code.value;
+        parameters.style.display = 'initial';
 
         try {
             result = esprima.parseScript(codeStr);
@@ -32,6 +53,7 @@ function main() {
             console.error(e); // Debugging
             error.innerText = "Error: " + e.description;
             error.style.padding = "10px";
+            parameters.style.display = 'none';
             clearParams();
             return;
         }
@@ -47,21 +69,39 @@ function main() {
                 clearError();
             }
         } else {
-            error.innerText = "The code should be a function declaration";
+            error.innerText = "The first declaration in the code should be a function";
+            error.style.padding = "10px";
+            parameters.style.display = 'none';
             clearParams();
         }
     }
 
+    // TODO: Make this more robust, possibly via esprima?
+    function touchesDOM(codeStr) {
+        return codeStr.indexOf("document.") !== -1
+    }
+
+    // TODO: Make this more robust, possibly via esprima?
+    function usesPromises(codeStr) {
+        return codeStr.indexOf(".resolve") !== -1 || codeStr.indexOf(".reject") !== -1
+    }
+
+    function showWarning(domEl) {
+        domEl.style.display = 'list-item';
+    }
+
     function handleRun() {
-        frames.style.display = 'none';
-        perceptible.style.display = 'none';
-        webworker.style.display = 'none';
-        dom.style.display = 'none';
+        clearWarnings();
+        runCount++;
+
+        const timeGreen = "#a9fda7";
+        const timeOrange = "#ffeb81";
+        const timeRed = "#ff8181";
 
         const codeStr = cleanCode();
         const args = getArgs();
         const funcName = getFunctionName();
-        eval.call(window, `${codeStr}`);
+        eval.call(window, codeStr);
         const func = window[funcName];
         
         const start = performance.now();
@@ -73,36 +113,50 @@ function main() {
 
         time.innerText = timeTaken + "ms";
         let hasWarnings = false;
-        time.style.background = "#a9fda7";
+        time.style.background = timeGreen;
 
         if (framesSkipped > 0) {
             hasWarnings = true;
-            frames.innerHTML = "Approximately <strong>" + framesSkipped + " frames</strong> would be skipped by this blocking JavaScript";
-            frames.style.display = 'list-item';
+            skipped.innerText = framesSkipped + " frames";
+            showWarning(frames);
+        }
+
+        if (timeTaken > 0 && timeTaken < 50) {
+            if (!usesPromises(codeStr)) {
+                showWarning(ric);
+            }
         }
         
         if (timeTaken >= 50) {
-            
+            time.style.background = timeOrange
+            const domTouch = touchesDOM(codeStr);
             hasWarnings = true;
-            perceptible.innerHTML = "If your main thread is unavailable for 50ms or more, <strong>this function might not leave enough time to handle user input </strong> before a perceptible delay occurs"
-            time.style.background = "#ffeb81"
-            
-            webworker.innerHTML = "It may be worth converting this function into a Web Worker";
-            webworker.style.display = 'list-item';
 
+            getWorkerTiming(args, runCount).then((time) => {
+                transferTime.innerText = time + "ms";
+            });
+
+            if (timeTaken < 100) {
+                showWarning(perceptible);
+                if (!domTouch) {
+                    showWarning(webworker);
+                }
+            }
+           
             if (timeTaken >= 100) {
-                webworker.innerHTML = "It is recommendable to turn this function into a Web Worker";
-                perceptible.innerHTML = "delays of longer than <strong>100ms are perceptible to users!</strong>";
-                time.style.background = "#ff8181"
+                if (!domTouch) {
+                    showWarning(webworkerRecommendable);
+                } else {
+                    showWarning(longDom);
+                }
+                showWarning(perceptibleLong);
+                time.style.background = timeRed
             }
 
-            if (codeStr.indexOf("document.") !== -1) {
-                dom.innerHTML = 'The code looks as if it <strong>touches the DOM which will not run in a Web Worker>/strong>; consider refactoring it to make it runnable';
-                dom.style.display = 'list-item';
+            if (domTouch) {
+                showWarning(dom);
             }
-
-            perceptible.style.display = 'list-item';
-
+            
         }
         if (hasWarnings) {
             warnings.style.display = "block";
@@ -111,6 +165,26 @@ function main() {
         }
 
         output.innerText = returnVal;
+    }
+
+    function getWorkerTiming(args, runNumber) {
+
+        return new Promise((resolve, reject) => {
+            // Cost of sending data to the web worker
+            const sendStart = performance.now();
+            worker.postMessage({data: args});
+            const sendEnd = performance.now();
+        
+            worker.onmessage = (e) => {
+                const onmessageTime = Date.now() - e.data.now;
+                if (runNumber === runCount) {
+                    showWarning(transfer);
+                    const time = (onmessageTime + (sendEnd - sendStart));
+                    resolve(time);
+                }
+            }
+        });
+
     }
 
     function cleanCode() {
@@ -141,14 +215,14 @@ function main() {
             const parsedArg = result.body[0];
             if (parsedArg.type === "ExpressionStatement") {
                 if (parsedArg.expression.type === "ArrayExpression") {
-                    return JSON.parse(arg);
+                    return JSON.parse(arg); // Array
                 }
                 if (parsedArg.expression.type === "Literal") {
-                    return parsedArg.expression.value;
+                    return parsedArg.expression.value; // String, Boolean, Number
                 }
             }
             if (parsedArg.type === "BlockStatement") {
-                return JSON.parse(arg);
+                return JSON.parse(arg); // Object
             }
         }
     }
@@ -163,6 +237,10 @@ function main() {
         inputContainer.appendChild(input);
         params.appendChild(inputContainer);
     }
+
+    function clearWarnings() {
+        allWarnings.forEach((w) => w.style.display = 'none');
+    }
     
     function clearError() {
         error.innerText = "";
@@ -176,7 +254,7 @@ function main() {
         return `
         function pi(precision) {
             let insideCircle = 0;
-        
+
             for(let i = 0; i < precision; i++) {
                 const x = 2 * Math.random() - 1;
                 const y = 2 * Math.random() - 1;
@@ -190,7 +268,4 @@ function main() {
         `
     }
     
-}
-
-
-main();
+})();
