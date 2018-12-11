@@ -60,7 +60,7 @@
 
         const hasBody = result && result.body && result.body.length
         const isFunction = result.body[0].type === "FunctionDeclaration";
-        console.log(result);
+
         if (hasBody && isFunction) {
             clearParams();
             const func = result.body[0];
@@ -122,6 +122,8 @@
         }
 
         if (timeTaken > 0 && timeTaken < 50) {
+            // functions that use reject and resolve promises shouldnt 
+            // be used in rIC because they will stack up the microtask queue
             if (!usesPromises(codeStr)) {
                 showWarning(ric);
             }
