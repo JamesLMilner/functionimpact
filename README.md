@@ -8,5 +8,12 @@ This is still very experimental! There is no build process, just the files found
 
 [GitHub Pages Demo](https://jamesmilneruk.github.io/functionimpact/)
 
+# TODO
+
+It would be nice to do the following:
+
+- Determine if a function will cause composite, layout, paint etc in the DOM
+- Use more robust determination of DOM access and Promise resolve/reject usage, potentially via esprima or some more powerful regexs  
+
 # License
 MIT
